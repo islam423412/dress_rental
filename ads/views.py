@@ -18,7 +18,7 @@ from .models import Ad, Review
 class AdListView(ListView):
     """Отображение списка объявлений с поиском"""
     model = Ad
-    template_name = 'ad_list.html'  # <-- ИСПРАВЛЕНО: убрано 'ads/'
+    template_name = 'ad_list.html'
     context_object_name = 'ads'
     paginate_by = 10
 
@@ -37,41 +37,32 @@ class AdListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('q', '')
-        context['search_location'] = self.request.GET.get('location', '')
-        return context
 
+        # --- БЕЗОПАСНЫЙ РАСЧЕТ ЗВЕЗД (чтобы не падал при старте) ---
+        if hasattr(self, 'object') and self.object:
+            reviews_count = self.object.reviews.count()
+            if reviews_count > 0:
+                avg_rating = self.object.reviews.aggregate(
+                    avg=Avg('rating', output_field=models.FloatField())
+                )['avg']
 
-class AdDetailView(DetailView):
-    """Детальный просмотр объявления + добавление отзыва"""
-    model = Ad
-    template_name = 'ad_detail.html'  # <-- ИСПРАВЛЕНО: убрано 'ads/'
-    context_object_name = 'ad'
+                full_stars = int(round(avg_rating))
+                empty_stars = 5 - full_stars
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        # --- РАСЧЕТ ЗВЕЗД (ПЕРЕНЕСЕНО ИЗ HTML) ---
-        reviews_count = self.object.reviews.count()
-
-        if reviews_count > 0:
-            avg_rating = self.object.reviews.aggregate(
-                avg=Avg('rating', output_field=models.FloatField())
-            )['avg']
-
-            full_stars = int(round(avg_rating))
-            empty_stars = 5 - full_stars
-
-            context['full_stars'] = range(full_stars)
-            context['empty_stars'] = range(empty_stars)
-            context['reviews_avg'] = round(avg_rating, 1)
+                context['full_stars'] = range(full_stars)
+                context['empty_stars'] = range(empty_stars)
+                context['reviews_avg'] = round(avg_rating, 1)
+            else:
+                context['full_stars'] = []
+                context['empty_stars'] = range(5)
+                context['reviews_avg'] = None
         else:
             context['full_stars'] = []
             context['empty_stars'] = range(5)
             context['reviews_avg'] = None
         # --- КОНЕЦ РАСЧЕТА ---
 
-        ad_status_ok = self.object.status == 'published'
+        ad_status_ok = self.object.status == 'published' if hasattr(self, 'object') else False
         user_authenticated = self.request.user.is_authenticated
         context['show_contact_info'] = ad_status_ok and user_authenticated
 
@@ -81,7 +72,8 @@ class AdDetailView(DetailView):
             context['review_form'] = ReviewForm()
 
         try:
-            self.object.increment_views()
+            if hasattr(self, 'object') and self.object:
+                self.object.increment_views()
         except AttributeError:
             pass
 
@@ -106,7 +98,7 @@ class AdCreateView(LoginRequiredMixin, CreateView):
     """Создание нового объявления"""
     model = Ad
     form_class = AdForm
-    template_name = 'ad_form.html'  # <-- ИСПРАВЛЕНО: убрано 'ads/'
+    template_name = 'ad_form.html'
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -121,7 +113,7 @@ class AdUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     """Редактирование своего объявления"""
     model = Ad
     form_class = AdForm
-    template_name = 'ad_form.html'  # <-- ИСПРАВЛЕНО: убрано 'ads/'
+    template_name = 'ad_form.html'
 
     def test_func(self):
         obj = self.get_object()
@@ -134,7 +126,7 @@ class AdUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
 class AdDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     """Удаление своего объявления"""
     model = Ad
-    template_name = 'ad_confirm_delete.html'  # <-- ИСПРАВЛЕНО: убрано 'ads/'
+    template_name = 'ad_confirm_delete.html'
     success_url = reverse_lazy('ad_list')
 
     def test_func(self):

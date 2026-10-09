@@ -26,7 +26,6 @@ class AdForm(forms.ModelForm):
             'price',
             'location',
             'contact_info',
-            'image'
         ]
 
         widgets = {

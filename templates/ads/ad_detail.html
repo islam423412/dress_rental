@@ -123,16 +123,16 @@
                     
                     <!-- Звездный рейтинг -->
                     <div class="mb-2">
-                        {% for _ in full_stars %}
-                            <span class="text-warning">&#9733;</span>
-                        {% endfor %}
-                        {% for _ in empty_stars %}
-                            <span class="text-muted">&#9734;</span>
-                        {% endfor %}
-
-                        {% if reviews_avg is not None %}
-                            <small class="text-muted ms-2">({{ reviews_avg }}/5)</small>
-                        {% endif %}
+                        {% with '5'|center:reviews_avg as total_stars %} <!-- ИСПРАВЛЕНО: английская 'w' -->
+                            {% for _ in total_stars %}
+                                <span class="text-warning">&#9733;</span>
+                            {% endfor %}
+                            {% with '5'|center:5|add:-reviews_avg as empty_stars %}
+                                {% for _ in empty_stars %}
+                                    <span class="text-muted">&#9734;</span>
+                                {% endfor %}
+                            {% endwith %}
+                        {% endwith %}
                     </div>
 
                     <p class="mb-1">{{ review.text|linebreaks }}</p>
